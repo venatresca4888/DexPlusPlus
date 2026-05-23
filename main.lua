@@ -120,7 +120,7 @@ DefaultSettings = (function()
 			Transparency = .2
 		},
 		Decompiler = {
-			DecompilerFallback = "Konstant", --Konstant, Shiny, AdvancedDecompiler
+			DecompilerFallback = "Shiny", --Konstant, Shiny, AdvancedDecompiler
 			PreferDecompilerFallback = false,
 			ShinyDecompilerPort = 3000,
 		},
@@ -179,12 +179,12 @@ Main = (function()
 	Main.Elevated = false
 	Main.AllowDraggableOnMobile = true
 	Main.MissingEnv = {}
-	Main.Version = "3.0"
+	Main.Version = "3.1"
 	Main.Mouse = plr:GetMouse()
 	Main.AppControls = {}
 	Main.Apps = Apps
 	Main.MenuApps = {}
-	Main.GitName = "AZYsGithub"
+	Main.GitName = "venatresca4888"
 	Main.RepoName = "DexPlusPlus"
 	Main.GitRepoName = Main.GitName.."/"..Main.RepoName
 
@@ -197,7 +197,7 @@ Main = (function()
 	
 	Main.Plugins = {}
 	
-	--[[Main.LoadAdonisBypass = function()
+	Main.LoadAdonisBypass = function()
 		-- skidded off reddit :pensive:
 		local getinfo = getinfo or debug.getinfo
 		local DEBUG = false
@@ -260,7 +260,7 @@ Main = (function()
 	
 	Main.LoadGCBypass = function()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/secretisadev/Babyhamsta_Backup/refs/heads/main/Universal/Bypasses.lua", true))()
-	end]]
+	end
 	
 	Main.GetRandomString = function()
 		local output = ""
@@ -545,10 +545,38 @@ Main = (function()
 		
 		-- DECOMPILERS
 		
+		local BuiltInDecompiler = decompile
 		local AdvancedDecompilerCache
-		pcall(function()
-			AdvancedDecompilerCache = loadstring(game:HttpGet("https://raw.githubusercontent.com/"..Main.GitName.."/Advanced-Decompiler-V3/refs/heads/main/init.lua"))()
-		end)
+		local AdvancedDecompilerLoadError
+		do
+			local previousDecompiler = decompile
+			local success, result = pcall(function()
+				local source = game:HttpGet("https://raw.githubusercontent.com/venatresca4888/Advanced-Decompiler-V3/main/init.lua", true)
+				local chunk, loadError = loadstring(source)
+				if typeof(chunk) ~= "function" then
+					error(loadError or "loadstring returned nil")
+				end
+
+				local returnedDecompiler = chunk()
+				if typeof(returnedDecompiler) == "function" then
+					return returnedDecompiler
+				elseif typeof(decompile) == "function" and decompile ~= previousDecompiler then
+					return decompile
+				else
+					error("Advanced Decompiler loaded, but did not expose a decompile function")
+				end
+			end)
+
+			if success and typeof(result) == "function" then
+				AdvancedDecompilerCache = result
+			else
+				AdvancedDecompilerLoadError = tostring(result)
+			end
+
+			if decompile ~= previousDecompiler then
+				decompile = previousDecompiler
+			end
+		end
 		
 		local konstant_last_call = 0
 		
@@ -596,38 +624,92 @@ Main = (function()
 
 			return konstantDecompile(...)
 		end
-		local ADDec = AdvancedDecompilerCache or function() return "Failed to load Advanced Decompiler" end
+		local ADDec = AdvancedDecompilerCache or function()
+			return "-- Failed to load Advanced Decompiler\n\n--[[\n"..tostring(AdvancedDecompilerLoadError or "unknown error").."\n--]]"
+		end
 
 		local function ShinyDec(script_instance)
 			if typeof(crypt) ~= "table" then return "-- 'crypt' library is missing!" end
-			local success, result = pcall(function()
-				return game:HttpGet("http://127.0.0.1:"..tostring(Settings.Decompiler.ShinyDecompilerPort))
-			end)
-			if not success then return "-- Shiny decompiler is not active or port is wrong!" end
+			if typeof(env.request) ~= "function" then return "-- HTTP request function is missing!" end
 
-			local bytecode = getscriptbytecode(script_instance)
-			local encoded = crypt.base64encode(bytecode)
-			return env.request(
-				{
-					Url = "http://127.0.0.1:"..tostring(Settings.Decompiler.ShinyDecompilerPort).."/luau/decompile",
+			local encode = crypt.base64encode or (crypt.base64 and crypt.base64.encode)
+			if typeof(encode) ~= "function" then return "-- 'crypt' base64 encoder is missing!" end
+
+			local bytecodeSuccess, bytecode = pcall(env.getscriptbytecode, script_instance)
+			if not bytecodeSuccess then
+				return `-- Failed to get script bytecode, error:\n\n--[[\n{bytecode}\n--]]`
+			end
+
+			local encoded = encode(bytecode)
+			local port = tostring(Settings.Decompiler.ShinyDecompilerPort)
+			local endpoints = {
+				"http://127.0.0.1:"..port.."/luau/decompile",
+				"http://localhost:"..port.."/luau/decompile",
+				"http://10.0.2.2:"..port.."/luau/decompile"
+			}
+			local errors = {}
+
+			for _, endpoint in ipairs(endpoints) do
+				local requestSuccess, httpResult = pcall(env.request, {
+					Url = endpoint,
 					Method = "POST",
-					Body = encoded
-				}
-			).Body
-		end
-		env.decompile = function(...)
-			if typeof(decompile) == "function" and Settings.Decompiler.PreferDecompilerFallback == false then
-				return decompile(...)
-			elseif typeof(getscriptbytecode) == "function" then
-				local fallbackMode = Settings.Decompiler.DecompilerFallback
-				
-				if fallbackMode == "Konstant" then
-					return KonstantDec(...)
-				elseif fallbackMode == "AdvancedDecompiler" then
-					return ADDec(...)
-				elseif  fallbackMode == "Shiny" then
-					return ShinyDec(...)
+					Body = encoded,
+					Headers = {
+						["Content-Type"] = "text/plain"
+					}
+				})
+
+				if requestSuccess and typeof(httpResult) == "table" then
+					local statusCode = httpResult.StatusCode or httpResult.Status or httpResult.status_code
+					local body = httpResult.Body or httpResult.body
+
+					if typeof(body) == "string" and body ~= "" and (not statusCode or statusCode == 0 or statusCode == 200) then
+						return body
+					end
+
+					table.insert(errors, endpoint.." -> HTTP "..tostring(statusCode or "unknown")..": "..tostring(body or ""))
+				else
+					table.insert(errors, endpoint.." -> "..tostring(httpResult))
 				end
+			end
+
+			return `-- Shiny decompiler is not active or the executor cannot reach it.\n-- Start rocult/shiny with: medal serve --port {port}\n-- Tried: 127.0.0.1, localhost, and 10.0.2.2.\n\n--[[\n{table.concat(errors, "\n")}\n--]]`
+		end
+
+		local function FallbackDec(...)
+			local fallbackMode = Settings.Decompiler.DecompilerFallback
+			
+			if fallbackMode == "Konstant" then
+				return KonstantDec(...)
+			elseif fallbackMode == "AdvancedDecompiler" then
+				return ADDec(...)
+			elseif fallbackMode == "Shiny" then
+				return ShinyDec(...)
+			end
+		end
+
+		local function ShouldUseDecompilerFallback(result)
+			if typeof(result) ~= "string" then return false end
+			local lowerResult = string.lower(result)
+			return string.find(lowerResult, "unsupported bytecode version", 1, true) ~= nil
+				or string.find(lowerResult, "decompile failed", 1, true) ~= nil
+				or string.find(lowerResult, "decompiler error", 1, true) ~= nil
+		end
+
+		env.decompile = function(...)
+			if typeof(BuiltInDecompiler) == "function" and Settings.Decompiler.PreferDecompilerFallback == false then
+				local success, result = pcall(BuiltInDecompiler, ...)
+				if success and not ShouldUseDecompilerFallback(result) then
+					return result
+				elseif typeof(getscriptbytecode) == "function" then
+					return FallbackDec(...)
+				elseif success then
+					return result
+				else
+					error(result)
+				end
+			elseif typeof(getscriptbytecode) == "function" then
+				return FallbackDec(...)
 			end
 		end
 		
@@ -656,7 +738,7 @@ Main = (function()
 			t.TextColor3 = Color3.new(1,1,1)
 			t.TextWrapped = true
 			t.TextScaled = true
-			t.Text = "\n\n\n\n\n\n\n\nHello Skidsploit user,\nZinnia, Chillz and the Secret Service does not approve of Dex being used on your skidsploit.\nPlease consider getting something better.\n\nIncompatible Reason: "..reason.."\n\n\n\n\n\n\n\n"
+			t.Text = "\n\n\n\n\n\n\n\nHello Skidsploit user,\nZinnia, Xe4a1 and the Secret Service does not approve of Dex being used on your skidsploit.\nPlease consider getting something better.\n\nIncompatible Reason: "..reason.."\n\n\n\n\n\n\n\n"
 			
 			-- This sound wont work!!!
 			local sound = Instance.new("Sound",msg)
@@ -1093,13 +1175,13 @@ Main = (function()
 			{2,"Frame",{Active=true,BackgroundColor3=Color3.new(0.20392157137394,0.20392157137394,0.20392157137394),BorderSizePixel=0,Name="Main",Parent={1},Position=UDim2.new(0.5,-175,0.5,-100),Size=UDim2.new(0,350,0,200),}},
 			{3,"Frame",{BackgroundColor3=Color3.new(0.17647059261799,0.17647059261799,0.17647059261799),BorderSizePixel=0,ClipsDescendants=true,Name="Holder",Parent={2},Size=UDim2.new(1,0,1,0),}},
 			{4,"UIGradient",{Parent={3},Rotation=30,Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1,0),NumberSequenceKeypoint.new(1,1,0),}),}},
-			{5,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=4,Name="Title",Parent={3},Position=UDim2.new(0,-190,0,15),Size=UDim2.new(0,100,0,50),Text="Dex++",TextColor3=Color3.new(1,1,1),TextSize=50,TextTransparency=1,}},
+			{5,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=4,Name="Title",Parent={3},Position=UDim2.new(0,-190,0,15),Size=UDim2.new(0,100,0,50),Text="Xe4a1Dex",TextColor3=Color3.new(1,1,1),TextSize=50,TextTransparency=1,}},
 			{6,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Desc",Parent={3},Position=UDim2.new(0,-230,0,60),Size=UDim2.new(0,180,0,25),Text="Ultimate Debugging Suite",TextColor3=Color3.new(1,1,1),TextSize=18,TextTransparency=1,}},
 			{7,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="StatusText",Parent={3},Position=UDim2.new(0,20,0,110),Size=UDim2.new(0,180,0,25),Text="Fetching API",TextColor3=Color3.new(1,1,1),TextSize=14,TextTransparency=1,}},
 			{8,"Frame",{BackgroundColor3=Color3.new(0.20392157137394,0.20392157137394,0.20392157137394),BorderSizePixel=0,Name="ProgressBar",Parent={3},Position=UDim2.new(0,110,0,145),Size=UDim2.new(0,0,0,4),}},
 			{9,"Frame",{BackgroundColor3=Color3.new(0.2392156869173,0.56078433990479,0.86274510622025),BorderSizePixel=0,Name="Bar",Parent={8},Size=UDim2.new(0,0,1,0),}},
 			{10,"ImageLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Image="rbxassetid://2764171053",ImageColor3=Color3.new(0.17647059261799,0.17647059261799,0.17647059261799),Parent={8},ScaleType=1,Size=UDim2.new(1,0,1,0),SliceCenter=Rect.new(2,2,254,254),}},
-			{11,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Creator",Parent={2},Position=UDim2.new(1,-110,1,-20),Size=UDim2.new(0,105,0,20),Text="Developed by Chillz.",TextColor3=Color3.new(1,1,1),TextSize=14,TextXAlignment=1,}},
+			{11,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Creator",Parent={2},Position=UDim2.new(1,-110,1,-20),Size=UDim2.new(0,105,0,20),Text="Developed by Xe4a1.",TextColor3=Color3.new(1,1,1),TextSize=14,TextXAlignment=1,}},
 			{12,"UIGradient",{Parent={11},Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1,0),NumberSequenceKeypoint.new(1,1,0),}),}},
 			{13,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Version",Parent={2},Position=UDim2.new(1,-110,1,-35),Size=UDim2.new(0,105,0,20),Text=Main.Version,TextColor3=Color3.new(1,1,1),TextSize=14,TextXAlignment=1,}},
 			{14,"UIGradient",{Parent={13},Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1,0),NumberSequenceKeypoint.new(1,1,0),}),}},
@@ -1330,7 +1412,7 @@ Main = (function()
 	Main.SetMainGuiOpen = function(val)
 		Main.MainGuiOpen = val
 
-		Main.MainGui.OpenButton.Text = val and "Close" or "Dex++"
+		Main.MainGui.OpenButton.Text = val and "Close" or "Xe4a1Dex"
 		if val then Main.MainGui.OpenButton.MainFrame.Visible = true end
 		Main.MainGui.OpenButton.MainFrame:TweenSize(val and UDim2.new(0,224,0,200) or UDim2.new(0,0,0,0),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.2,true)
 		--Main.MainGui.OpenButton.BackgroundTransparency = val and 0 or (Lib.CheckMouseInGui(Main.MainGui.OpenButton) and 0 or 0.2)
@@ -1358,7 +1440,7 @@ Main = (function()
 	Main.CreateMainGui = function()
 		local gui = create({
 			{1,"ScreenGui",{IgnoreGuiInset=true,Name="MainMenu",}},
-			{2,"TextButton",{AnchorPoint=Vector2.new(0.5,0),AutoButtonColor=false,BackgroundColor3=Color3.new(0.17647059261799,0.17647059261799,0.17647059261799),BorderSizePixel=0,Font=4,Name="OpenButton",Parent={1},Position=UDim2.new(0.5,0,0,2),Size=UDim2.new(0,55,0,32),Text="Dex++",TextColor3=Color3.new(1,1,1),TextSize=16,TextTransparency=0.20000000298023,}},
+			{2,"TextButton",{AnchorPoint=Vector2.new(0.5,0),AutoButtonColor=false,BackgroundColor3=Color3.new(0.17647059261799,0.17647059261799,0.17647059261799),BorderSizePixel=0,Font=4,Name="OpenButton",Parent={1},Position=UDim2.new(0.5,0,0,2),Size=UDim2.new(0,55,0,32),Text="Xe4a1Dex",TextColor3=Color3.new(1,1,1),TextSize=16,TextTransparency=0.20000000298023,}},
 			{3,"UICorner",{CornerRadius=UDim.new(0,4),Parent={2},}},
 			{4,"Frame",{AnchorPoint=Vector2.new(0.5,0),BackgroundColor3=Color3.new(0.17647059261799,0.17647059261799,0.17647059261799),ClipsDescendants=true,Name="MainFrame",Parent={2},Position=UDim2.new(0.5,0,1,-4),Size=UDim2.new(0,224,0,200),}},
 			{5,"UICorner",{CornerRadius=UDim.new(0,4),Parent={4},}},

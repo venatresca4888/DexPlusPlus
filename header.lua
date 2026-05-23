@@ -1,10 +1,10 @@
 --[[
-	Dex++
-	Version 3.0
+	Xe4a1Dex
+	Version 3.1
 	
-	Developed by Chillz
+	Developed by Xe4a1
 	
-	Dex++ is a revival of Moon's Dex, made to fulfill Moon's Dex prophecy.
+	Xe4a1Dex is a revival of Moon's Dex, made to fulfill Moon's Dex prophecy.
 ]]
 
 local selection
