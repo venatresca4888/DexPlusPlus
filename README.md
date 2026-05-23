@@ -45,8 +45,8 @@ The concept of the Dex roadmap is amazing, however neither me nor Moon have the 
 [![USSI License](https://img.shields.io/badge/USSI-License-green)](https://github.com/luau/UniversalSynSaveInstance/blob/main/LICENSE)
 
 ## Credits
-- [Xe4a1] (https://github.com/venatresca4888) - Xe4a1Dex Maintainer
-- [Chillz](https://github.com/AZYsGithub/Xe4a1Dex) – Original Xe4a1Dex  
+- [Xe4a1](https://github.com/AZYsGithub/Xe4a1Dex) – Original Xe4a1Dex 
+- [Chillz](https://github.com/AZYsGithub/DexPlusPlus) – Original Xe4a1Dex  
 - [Cazan](https://github.com/Cazzanos) – Helped me develop the Model Viewer  
 - [Moon](https://github.com/LorekeeperZinnia/Dex) – Original Dex Explorer  
 - [Toon](https://github.com/Toon-arch) – Contributor and IY's Dex parts and components
