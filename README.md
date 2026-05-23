@@ -1,13 +1,13 @@
 # Dex++
-![Preview](https://raw.githubusercontent.com/venatresca4888/DexPlusPlus/main/preview.png)
+![Preview](https://raw.githubusercontent.com/venatresca4888/Xe4a1Dex/main/preview.png)
 
 Dex++ is an extended version of Moon's Dex, made to fulfill some Moon's Dex prophecy.
 
 ## Latest Version Script
 ```lua
-loadstring(game:HttpGet("https://github.com/venatresca4888/DexPlusPlus/releases/latest/download/out.lua"))()
+loadstring(game:HttpGet("https://github.com/venatresca4888/Xe4a1Dex/releases/latest/download/out.lua"))()
 ```
-For specific versions, go to [releases](https://github.com/venatresca4888/DexPlusPlus/releases).
+For specific versions, go to [releases](https://github.com/venatresca4888/Xe4a1Dex/releases).
 
 ## What's the difference between Dex and Dex++?
 Since the original Dex is the last release and Moon have discontinued it, it still has some missing features.
@@ -40,13 +40,13 @@ The concept of the Dex roadmap is amazing, however neither me nor Moon have the 
 - [Shiny](https://github.com/rocult/shiny)/[Medal](https://github.com/shrimp-nz/medal)
 
 ## License
-[![Dex++ License](https://img.shields.io/badge/Dex++-License-green)](https://github.com/venatresca4888/DexPlusPlus/blob/main/LICENSE)
+[![Dex++ License](https://img.shields.io/badge/Dex++-License-green)](https://github.com/venatresca4888/Xe4a1Dex/blob/main/LICENSE)
 
 [![USSI License](https://img.shields.io/badge/USSI-License-green)](https://github.com/luau/UniversalSynSaveInstance/blob/main/LICENSE)
 
 ## Credits
 - [Xe4a1] (https://github.com/venatresca4888) - Xe4a1Dex Maintainer
-- [Chillz](https://github.com/AZYsGithub/DexPlusPlus) – Original Dex++  
+- [Chillz](https://github.com/AZYsGithub/Xe4a1Dex) – Original Dex++  
 - [Cazan](https://github.com/Cazzanos) – Helped me develop the Model Viewer  
 - [Moon](https://github.com/LorekeeperZinnia/Dex) – Original Dex Explorer  
 - [Toon](https://github.com/Toon-arch) – Contributor and IY's Dex parts and components
